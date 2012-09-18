@@ -34,7 +34,7 @@ object ReflectionUtils {
     case _ : String => stringTypeId
   }
 
-  def mkExpr[T : AbsTypeTag](mirror: Mirror)(tree : Tree) : mirror.universe.Expr[T] =
+  def mkExpr[T : WeakTypeTag](mirror: Mirror)(tree : Tree) : mirror.universe.Expr[T] =
     mirror.universe.Expr[T](mirror, new TreeCreator {
       def apply[U <: Universe with Singleton](m : MirrorOf[U]) : U#Tree =
         if (m eq mirror) tree.asInstanceOf[U#Tree]
