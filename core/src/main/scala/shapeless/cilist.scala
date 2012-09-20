@@ -27,7 +27,7 @@ sealed trait CIList[+I] {
   type MapOutHighBound <: CIList[Any]
   def map[O, OL <: MapOutHighBound](f: I => O):OL
 
-  //def ::[J >: I, E <: J](e: E):CICons[J, E, CIList[J]]
+  def ::[J >: I, E <: J](e: E):CICons[J, E, CIList[J]]
   /*
   type MapOut[O] <: CIList[O]
   def map[O](f: I => O):MapOut[O]
@@ -46,16 +46,7 @@ final case class CICons[+I, H <: I, T <: CIList[I]](head:H, tail:T)
   type Tail = T
 
   def map[O, OL <: MapOutHighBound](f: I => O):OL = 
-  //def map[O, OL <: CICons[Any, Any, CIList[Any]]](f: I => O):OL = 
     CICons[OL#Interface, OL#Head, OL#Tail](f(head), tail.map(f))
-
-  //def map[O, OH <: O, OT <: CIList[O]](f: I => O) = CICons[O, OH, OT](f(head), tail.map(f))
-  
-  //type MapOut[O] = CICons[O, OH <: O, OT <: CIList[O]]
-  /*  Pay close attention to what the type of tail.map(f) is supposed to be 
-      and how it relates to the return type of the current map call. */
-  //def map[O](f: I => O):MapOut[O] = CICons(f(head), tail.map(f))
-  //def map[O, OL <: CIList[O]](f: I => O):OL = f(head) :: tail.map(f)
 }
 
 sealed class CINil extends CIList[Nothing] {
@@ -68,7 +59,7 @@ sealed class CINil extends CIList[Nothing] {
 object CINil extends CINil
 
 object CIList {
-  //  how do i make this work like in apocalisp HList ?
+  //  how do i make this work like in Harrah's HList ?
   //  - probably not possible
   //type ::[I][H <: I, T <: CIList[I]] = CICons[I,H,T]
   val :: = CICons
