@@ -28,10 +28,6 @@ sealed trait CIList[+I] {
   def map[O, OL <: MapOutHighBound](f: I => O):OL
 
   def ::[J >: I, E <: J](e: E):CICons[J, E, CIList[J]]
-  /*
-  type MapOut[O] <: CIList[O]
-  def map[O](f: I => O):MapOut[O]
-  */
 }
 
 final case class CICons[+I, H <: I, T <: CIList[I]](head:H, tail:T) 
