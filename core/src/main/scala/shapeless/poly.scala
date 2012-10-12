@@ -163,6 +163,8 @@ trait LowPriorityLiftFunction1 extends Poly1 {
   implicit def default[T] = at[T](t => HNil : HNil)
 }
 
+
+
 /**
  * Base class for lifting a `Function1` to a `Poly1` over the universal domain, yielding an `HList` with the result as
  * it's only element if the argument is in the original functions domain, `HNil` otherwise. 
@@ -181,6 +183,17 @@ trait LowPriorityLift1 extends Poly1 {
  */
 class Lift1[P <: Poly](p : P)  extends LowPriorityLift1 {
   implicit def defined[T](implicit caseT : Case1Aux[P, T]) = at[T](t => caseT(t) :: HNil)
+}
+
+/**
+ * Base trait for building `Poly1` functions with a subtype-polymorphic 
+ * return type.
+ */
+trait SubPolyRet1[T] extends Poly1 {
+  type R[+_ <: T]
+  def f[U <: T] : U => R[U]
+
+  implicit def subT[U <: T] = at[U](f[U])
 }
 
 /**
