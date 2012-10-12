@@ -186,8 +186,7 @@ class Lift1[P <: Poly](p : P)  extends LowPriorityLift1 {
 }
 
 /**
- * Base trait for building `Poly1` functions with a subtype-polymorphic 
- * return type.
+ * Base trait for building `Poly1` functions with a subtype-polymorphic return type.
  */
 trait SubPolyRet1[T] extends Poly1 {
   type R[+_ <: T]

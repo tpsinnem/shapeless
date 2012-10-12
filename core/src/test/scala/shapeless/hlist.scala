@@ -74,6 +74,19 @@ class HListTests {
   object fruit extends (Fruit -> Fruit)(f => f)
   object incInt extends (Int >-> Int)(_ + 1)
   object extendedChoose extends Lift1(choose)
+
+  trait YoungAnimal { type Adult <: AdultAnimal; def grow:Adult }
+  trait AdultAnimal
+
+  case class Puppy extends YoungAnimal { type Adult = Dog; def grow:Adult = Dog() }
+  case class Kitten extends YoungAnimal { type Adult = Cat; def grow:Adult = Cat() }
+  case class Dog extends AdultAnimal
+  case class Cat extends AdultAnimal
+
+  object grow extends SubPolyRet1[YoungAnimal] {
+    type R[+T <: YoungAnimal] = T#Adult
+    def f[T <: YoungAnimal] : T => R[T] = { x => x.grow }
+  }
   
   def typed[T](t : => T) {}
   
@@ -148,6 +161,11 @@ class HListTests {
     val l11 = apbp map mkString
     typed[String :: String :: String :: String :: HNil](l11)
     assertEquals("Apple()" :: "Pear()" :: "Banana()" :: "Pear()" :: HNil, l11)
+
+    val y = Puppy() :: Kitten() :: HNil
+    val a = y map grow
+    typed[Dog :: Cat :: HNil](a)
+    assertEquals(Dog() :: Cat() :: HNil, a)
   }
 
   object dup extends Poly1 {
