@@ -100,11 +100,25 @@ trait SingletonTypeMacros[C <: Context] {
       case (tpe @ ConstantType(const: Constant), _) =>
         mkWitness(TypeTree(tpe), Literal(const))
 
+
       case (tpe @ SingleType(p, v), tree) if !v.isParameter =>
         mkWitness(TypeTree(tpe), tree)
 
+      //case (tpe @ SingleType(p, v), tree) =>
+      //  mkWitness(TypeTree(tpe), tree)
+
       case (tpe: TypeRef, Literal(const: Constant)) =>
         mkWitness(TypeTree(ConstantType(const)), Literal(const))
+
+      /* Can do this?:
+      case (tpe: TypeRef, func @ Function(_,_)) =>
+        mkWitness(TypeTree(SOMETHING, SOMETHING))
+      */
+      /*
+      case (tpe: TypeRef, func @ Function(_,_)) =>
+        mkWitness(TypeTree(tpe), func)
+      */
+
 
       case _ =>
         c.abort(c.enclosingPosition, s"Expression ${t.tree} does not evaluate to a constant or a stable value")
