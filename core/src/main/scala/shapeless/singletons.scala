@@ -74,40 +74,6 @@ trait SingletonTypeMacros[C <: Context] {
     }
   }
 
-  //def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: TypeSymbol) = {
-  def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: Symbol) = {
-    val witnessTpt = Ident(typeOf[Witness].typeSymbol)
-    val T = TypeDef(Modifiers(), newTypeName("T"), List(), sTpt)
-    val value = ValDef(Modifiers(), newTermName("value"), sTpt, s)
-    c.Expr[W] {
-      mkImplClassFromTmpTSym(witnessTpt, List(T, value), List(), tmpTSym)
-    }
-  }
-
-  //def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: TypeSymbol): Tree = {
-  def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: Symbol): Tree = {
-    val name = newTypeName(c.fresh())
-
-    val classDef0 =
-      ClassDef(
-        Modifiers(FINAL),
-        name,
-        List(),
-        Template(
-          List(parent),
-          emptyValDef,
-          constructor(args.size > 0) :: defns
-        )
-      )
-    val tSym = classDef0.symbol.newTypeSymbol(newTypeName(c.fresh()))
-    val classDef = classDef0.substituteSymbols(List(tmpTSym), List(tSym))
-
-    Block(
-      List(classDef),
-      Apply(Select(New(Ident(name)), nme.CONSTRUCTOR), args)
-    )
-  }
-
   def materializeImpl[T: c.WeakTypeTag]: c.Expr[Witness.Aux[T]] = {
     weakTypeOf[T] match {
       case t @ ConstantType(Constant(s)) => mkWitnessT(t, s)
@@ -140,9 +106,6 @@ trait SingletonTypeMacros[C <: Context] {
       //  of this witness in a different context from the one in which it's 
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(i,o)), func @ Function(_,_)) => {
-        //val tmpTSym = NoSymbol
-        //val tmpTSym = NoSymbol.newTypeSymbol(newTypeName(c.fresh()))
-        //val tSym = c.enclosingClass.symbol.newTypeSymbol(newTypeName(c.fresh()))
         val typeTree = 
           TypeTree(AnnotatedType(
             List(Annotation(
@@ -150,11 +113,8 @@ trait SingletonTypeMacros[C <: Context] {
               List(func), ListMap()
             )),
             TypeRef(NoPrefix, f1sym, List(i,o)),
-            //tmpTSym
-            //tSym
             NoSymbol
           ))
-        //mkWitnessFromTmpTSym(typeTree, func, tmpTSym)
         mkWitness(typeTree, func)
       }
 
