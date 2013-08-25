@@ -117,41 +117,6 @@ trait SingletonTypeMacros[C <: Context] {
       Apply(Select(New(Ident(name)), nme.CONSTRUCTOR), args)
     )
   }
-  /*
-  def mkWitnessFn[W](sTptFn: Symbol => TypTree, s: Tree) = {
-    val witnessTpt = Ident(typeOf[Witness].typeSymbol)
-    val TFn: Symbol => TypeDef = { 
-      sym => TypeDef(Modifiers(), newTypeName("T"), List(), sTptFn(sym))
-    }
-    val valueFn: Symbol => ValDef = {
-      sym => ValDef(Modifiers(), newTermName("value"), sTptFn(sym), s)
-    }
-    c.Expr[W] {
-      mkImplClassFn(witnessTpt, List(TFn, valueFn), List())
-    }
-  }
-
-  def mkImplClassFn(parent: Tree, defnFns: List[Symbol => Tree], args: List[Tree]): Tree = {
-    val name = newTypeName(c.fresh())
-
-    val classDef0 =
-      ClassDef(
-        Modifiers(FINAL),
-        name,
-        List(),
-        Template(
-          List(parent),
-          emptyValDef,
-          constructor(args.size > 0) :: (defns map (_.apply(NoSymbol)))
-        )
-      )
-
-    Block(
-      List(classDef),
-      Apply(Select(New(Ident(name)), nme.CONSTRUCTOR), args)
-    )
-  }
-  */
 
   def materializeImpl[T: c.WeakTypeTag]: c.Expr[Witness.Eq[T]] = {
     weakTypeOf[T] match {
@@ -196,59 +161,7 @@ trait SingletonTypeMacros[C <: Context] {
             tmpTSym
           ))
         mkWitnessFromTmpTSym(typeTree, func, tmpTSym)
-        /*
-        val annType = AnnotatedType(
-          List(Annotation(
-            TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
-            List(func), ListMap()
-          )),
-          TypeRef(NoPrefix, f1sym, List(i,o)),
-          // NoSymbol // FIXME: Is this safe? -- wohoops, apparently not
-          typetree.symbol.newTypeSymbol(
-            newTypeName(c.fresh()), NoPosition, FINAL
-          )
-        )
-        val typeTree: TypeTree = 
-          TypeTree(annType)
-        mkWitness(typetree, func)
-        */
-        /*
-        lazy val typetree: TypeTree = {
-          lazy val newtsym: TypeSymbol = typetree.symbol.newTypeSymbol(
-            newTypeName(c.fresh()), NoPosition, FINAL
-          )
-          TypeTree(AnnotatedType(
-            List(Annotation(
-              TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
-              List(func), ListMap()
-            )),
-            TypeRef(NoPrefix, f1sym, List(i,o)),
-            // NoSymbol // FIXME: Is this safe? -- wohoops, apparently not
-            newtsym
-          ))
-        }
-        mkWitness(typetree, func)
-        */
       }
-
-      //case (tpe @ TypeRef(_, typeOf[Function1, List(i,o)), func @ Function(_,_)) => ???
-        // something something
-        // scala> weakTypeOf[Function1[_,_]].typeSymbol.name
-        // res14: reflect.runtime.universe.Name = Function1
-        //
-        // also
-        //
-        // was there something bad in this vs type comparison in scalaz?
-        // if (weakTypeOf[T] <:< typeOf[Function1[_,_]]) println("yay")
-
-      /* Can do this?:
-      case (tpe: TypeRef, func @ Function(_,_)) =>
-        mkWitness(TypeTree(SOMETHING, SOMETHING))
-      */
-      /*
-      case (tpe: TypeRef, func @ Function(_,_)) =>
-        mkWitness(TypeTree(tpe), func)
-      */
 
       case _ =>
         c.abort(c.enclosingPosition, s"Expression ${t.tree} does not evaluate to a constant or a stable value")
