@@ -74,7 +74,8 @@ trait SingletonTypeMacros[C <: Context] {
     }
   }
 
-  def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: TypeSymbol) = {
+  //def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: TypeSymbol) = {
+  def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: Symbol) = {
     val witnessTpt = Ident(typeOf[Witness].typeSymbol)
     val T = TypeDef(Modifiers(), newTypeName("T"), List(), sTpt)
     val value = ValDef(Modifiers(), newTermName("value"), sTpt, s)
@@ -83,7 +84,8 @@ trait SingletonTypeMacros[C <: Context] {
     }
   }
 
-  def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: TypeSymbol): Tree = {
+  //def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: TypeSymbol): Tree = {
+  def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: Symbol): Tree = {
     val name = newTypeName(c.fresh())
 
     val classDef0 =
@@ -138,7 +140,8 @@ trait SingletonTypeMacros[C <: Context] {
       //  of this witness in a different context from the one in which it's 
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(i,o)), func @ Function(_,_)) => {
-        val tmpTSym = NoSymbol.newTypeSymbol(newTypeName(c.fresh()))
+        val tmpTSym = NoSymbol
+        //val tmpTSym = NoSymbol.newTypeSymbol(newTypeName(c.fresh()))
         val typeTree = 
           TypeTree(AnnotatedType(
             List(Annotation(
