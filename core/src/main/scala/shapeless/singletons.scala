@@ -140,8 +140,9 @@ trait SingletonTypeMacros[C <: Context] {
       //  of this witness in a different context from the one in which it's 
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(i,o)), func @ Function(_,_)) => {
-        val tmpTSym = NoSymbol
+        //val tmpTSym = NoSymbol
         //val tmpTSym = NoSymbol.newTypeSymbol(newTypeName(c.fresh()))
+        val tSym = c.enclosingClass.symbol.newTypeSymbol(newTypeName(c.fresh()))
         val typeTree = 
           TypeTree(AnnotatedType(
             List(Annotation(
@@ -149,9 +150,11 @@ trait SingletonTypeMacros[C <: Context] {
               List(func), ListMap()
             )),
             TypeRef(NoPrefix, f1sym, List(i,o)),
-            tmpTSym
+            //tmpTSym
+            tSym
           ))
-        mkWitnessFromTmpTSym(typeTree, func, tmpTSym)
+        //mkWitnessFromTmpTSym(typeTree, func, tmpTSym)
+        mkWitness(typeTree, func)
       }
 
       case _ =>
