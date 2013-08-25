@@ -20,6 +20,7 @@ import scala.language.existentials
 import scala.language.experimental.macros
 
 import scala.reflect.macros.Context
+import scala.annotation.StaticAnnotation
 
 trait Witness {
   type T
@@ -63,6 +64,8 @@ object WitnessWith extends LowPriorityWitnessWith {
   implicit def apply1[TC[_], T](t: T) = macro SingletonTypeMacros.convertInstanceImpl1[TC, T]
 }
 
+class Function1Body[I,O](f: I => O) extends StaticAnnotation
+
 trait SingletonTypeMacros[C <: Context] {
   import syntax.SingletonOps
   type SingletonOpsLt[Lub] = SingletonOps { type T <: Lub }
@@ -83,6 +86,73 @@ trait SingletonTypeMacros[C <: Context] {
     }
   }
 
+  def mkWitnessFromTmpTSym[W](sTpt: TypTree, s: Tree, tmpTSym: TypeSymbol) = {
+    val witnessTpt = Ident(typeOf[Witness].typeSymbol)
+    val T = TypeDef(Modifiers(), newTypeName("T"), List(), sTpt)
+    val value = ValDef(Modifiers(), newTermName("value"), sTpt, s)
+    c.Expr[W] {
+      mkImplClassFromTmpTSym(witnessTpt, List(T, value), List(), tmpTSym)
+    }
+  }
+
+  def mkImplClassFromTmpTSym(parent: Tree, defns: List[Tree], args: List[Tree], tmpTSym: TypeSymbol): Tree = {
+    val name = newTypeName(c.fresh())
+
+    val classDef0 =
+      ClassDef(
+        Modifiers(FINAL),
+        name,
+        List(),
+        Template(
+          List(parent),
+          emptyValDef,
+          constructor(args.size > 0) :: defns
+        )
+      )
+    val tSym = classDef0.symbol.newTypeSymbol(newTypeName(c.fresh()))
+    val classDef = classDef0.substituteSymbols(List(tmpTSym), List(tSym))
+
+    Block(
+      List(classDef),
+      Apply(Select(New(Ident(name)), nme.CONSTRUCTOR), args)
+    )
+  }
+  /*
+  def mkWitnessFn[W](sTptFn: Symbol => TypTree, s: Tree) = {
+    val witnessTpt = Ident(typeOf[Witness].typeSymbol)
+    val TFn: Symbol => TypeDef = { 
+      sym => TypeDef(Modifiers(), newTypeName("T"), List(), sTptFn(sym))
+    }
+    val valueFn: Symbol => ValDef = {
+      sym => ValDef(Modifiers(), newTermName("value"), sTptFn(sym), s)
+    }
+    c.Expr[W] {
+      mkImplClassFn(witnessTpt, List(TFn, valueFn), List())
+    }
+  }
+
+  def mkImplClassFn(parent: Tree, defnFns: List[Symbol => Tree], args: List[Tree]): Tree = {
+    val name = newTypeName(c.fresh())
+
+    val classDef0 =
+      ClassDef(
+        Modifiers(FINAL),
+        name,
+        List(),
+        Template(
+          List(parent),
+          emptyValDef,
+          constructor(args.size > 0) :: (defns map (_.apply(NoSymbol)))
+        )
+      )
+
+    Block(
+      List(classDef),
+      Apply(Select(New(Ident(name)), nme.CONSTRUCTOR), args)
+    )
+  }
+  */
+
   def materializeImpl[T: c.WeakTypeTag]: c.Expr[Witness.Eq[T]] = {
     weakTypeOf[T] match {
       case t @ ConstantType(Constant(s)) => mkWitnessT(t, s)
@@ -96,19 +166,80 @@ trait SingletonTypeMacros[C <: Context] {
   }
 
   def convertImpl[T: c.WeakTypeTag](t: c.Expr[T]): c.Expr[Witness.Lt[T]] = {
+    import scala.collection.immutable.ListMap
+
+    val f1sym = typeOf[Function1[_,_]].typeSymbol
+
     (weakTypeOf[T], t.tree) match {
       case (tpe @ ConstantType(const: Constant), _) =>
         mkWitness(TypeTree(tpe), Literal(const))
 
-
       case (tpe @ SingleType(p, v), tree) if !v.isParameter =>
         mkWitness(TypeTree(tpe), tree)
 
-      //case (tpe @ SingleType(p, v), tree) =>
-      //  mkWitness(TypeTree(tpe), tree)
-
       case (tpe: TypeRef, Literal(const: Constant)) =>
         mkWitness(TypeTree(ConstantType(const)), Literal(const))
+
+      //  FIXME, CRITICAL: Before trying to publish anything, make sure you 
+      //  are avoiding ghastly bugs relating to free variables and evaluation 
+      //  of this witness in a different context from the one in which it's 
+      //  constructed!
+      case (tpe @ TypeRef(_, `f1sym`, List(i,o)), func @ Function(_,_)) => {
+        val tmpTSym = NoSymbol.newTypeSymbol(newTypeName(c.fresh()))
+        val typeTree = 
+          TypeTree(AnnotatedType(
+            List(Annotation(
+              TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
+              List(func), ListMap()
+            )),
+            TypeRef(NoPrefix, f1sym, List(i,o)),
+            tmpTSym
+          ))
+        mkWitnessFromTmpTSym(typeTree, func, tmpTSym)
+        /*
+        val annType = AnnotatedType(
+          List(Annotation(
+            TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
+            List(func), ListMap()
+          )),
+          TypeRef(NoPrefix, f1sym, List(i,o)),
+          // NoSymbol // FIXME: Is this safe? -- wohoops, apparently not
+          typetree.symbol.newTypeSymbol(
+            newTypeName(c.fresh()), NoPosition, FINAL
+          )
+        )
+        val typeTree: TypeTree = 
+          TypeTree(annType)
+        mkWitness(typetree, func)
+        */
+        /*
+        lazy val typetree: TypeTree = {
+          lazy val newtsym: TypeSymbol = typetree.symbol.newTypeSymbol(
+            newTypeName(c.fresh()), NoPosition, FINAL
+          )
+          TypeTree(AnnotatedType(
+            List(Annotation(
+              TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
+              List(func), ListMap()
+            )),
+            TypeRef(NoPrefix, f1sym, List(i,o)),
+            // NoSymbol // FIXME: Is this safe? -- wohoops, apparently not
+            newtsym
+          ))
+        }
+        mkWitness(typetree, func)
+        */
+      }
+
+      //case (tpe @ TypeRef(_, typeOf[Function1, List(i,o)), func @ Function(_,_)) => ???
+        // something something
+        // scala> weakTypeOf[Function1[_,_]].typeSymbol.name
+        // res14: reflect.runtime.universe.Name = Function1
+        //
+        // also
+        //
+        // was there something bad in this vs type comparison in scalaz?
+        // if (weakTypeOf[T] <:< typeOf[Function1[_,_]]) println("yay")
 
       /* Can do this?:
       case (tpe: TypeRef, func @ Function(_,_)) =>
@@ -118,7 +249,6 @@ trait SingletonTypeMacros[C <: Context] {
       case (tpe: TypeRef, func @ Function(_,_)) =>
         mkWitness(TypeTree(tpe), func)
       */
-
 
       case _ =>
         c.abort(c.enclosingPosition, s"Expression ${t.tree} does not evaluate to a constant or a stable value")
