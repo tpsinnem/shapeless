@@ -24,6 +24,7 @@ package shapeless.examples
 object FibonacciExamples {
   import shapeless._
   import nat._
+  import ops.nat._
   import ops.hlist.Reverse
 
   def typed[T](t : => T) {}
@@ -43,7 +44,7 @@ object FibonacciExamples {
         new Fibonacci[Succ[Succ[I]], sum.Out]
   }
   
-  def fibonacci[N <: Nat](i : Nat)(implicit fib : Fibonacci[i.N, N], wn: Witness.Aux[N]) = wn.value
+  def fibonacci[N <: Nat](i : Nat)(implicit fib : Fibonacci[i.N, N], wn: Witness.Aux[N]): N = wn.value
 
   val f0 = fibonacci(0)
   typed[_0](f0)

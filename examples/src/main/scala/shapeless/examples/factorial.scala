@@ -25,13 +25,14 @@ package shapeless.examples
 object FactorialExamples {
   import shapeless._
   import nat._
+  import ops.nat._
 
   def typed[T](t : => T) {}
 
   trait Factorial[I <: Nat] { type Out <: Nat }
 
   object Factorial {
-    def factorial[N <: Nat](i : Nat)(implicit fact : Factorial.Aux[i.N, N], wn : Witness.Aux[N]) = wn.value
+    def factorial[N <: Nat](i : Nat)(implicit fact : Factorial.Aux[i.N, N], wn : Witness.Aux[N]): N = wn.value
 
     type Aux[I <: Nat, Out0 <: Nat] = Factorial[I] { type Out = Out0 }
 

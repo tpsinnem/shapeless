@@ -28,24 +28,12 @@ trait Witness {
 }
 
 object Witness {
-  type Eq[T0] = Witness { type T = T0 }
+  type Aux[T0] = Witness { type T = T0 }
   type Lt[Lub] = Witness { type T <: Lub }
 
   implicit def apply[T] = macro SingletonTypeMacros.materializeImpl[T]
 
   implicit def apply[T](t: T) = macro SingletonTypeMacros.convertImpl[T]
-
-  type Aux[T] = WitnessAux[T]
-}
-
-trait WitnessAux[T] {
-  val value: T
-}
-
-object WitnessAux {
-  implicit def witnessAux[T0](implicit w: Witness { type T = T0 }): WitnessAux[T0] = new WitnessAux[T0] {
-    val value = w.value
-  }
 }
 
 trait WitnessWith[TC[_]] extends Witness {
@@ -58,7 +46,7 @@ trait LowPriorityWitnessWith {
 }
 
 object WitnessWith extends LowPriorityWitnessWith {
-  type Eq[TC[_], T0] = WitnessWith[TC] { type T = T0  }
+  type Aux[TC[_], T0] = WitnessWith[TC] { type T = T0  }
   type Lt[TC[_], Lub] = WitnessWith[TC] { type T <: Lub }
 
   implicit def apply1[TC[_], T](t: T) = macro SingletonTypeMacros.convertInstanceImpl1[TC, T]
@@ -118,7 +106,7 @@ trait SingletonTypeMacros[C <: Context] {
     )
   }
 
-  def materializeImpl[T: c.WeakTypeTag]: c.Expr[Witness.Eq[T]] = {
+  def materializeImpl[T: c.WeakTypeTag]: c.Expr[Witness.Aux[T]] = {
     weakTypeOf[T] match {
       case t @ ConstantType(Constant(s)) => mkWitnessT(t, s)
 
@@ -346,7 +334,7 @@ object SingletonTypeMacros {
 
   def inst(c0: Context) = new SingletonTypeMacros[c0.type] { val c: c0.type = c0 }
 
-  def materializeImpl[T: c.WeakTypeTag](c: Context): c.Expr[Witness.Eq[T]] = inst(c).materializeImpl[T]
+  def materializeImpl[T: c.WeakTypeTag](c: Context): c.Expr[Witness.Aux[T]] = inst(c).materializeImpl[T]
 
   def convertImpl[T: c.WeakTypeTag](c: Context)(t: c.Expr[T]): c.Expr[Witness.Lt[T]] = inst(c).convertImpl[T](t)
 
