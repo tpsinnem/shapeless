@@ -106,7 +106,7 @@ trait SingletonTypeMacros[C <: Context] {
       //  of this witness in a different context from the one in which it's 
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(i,o)), func @ Function(_,_)) => {
-        val typeTree = 
+        val typeTree = // FIXME wrap this with Annotated?
           TypeTree(AnnotatedType(
             List(Annotation(
               TypeRef(NoPrefix, typeOf[Function1Body[_,_]].typeSymbol, List(i,o)),
