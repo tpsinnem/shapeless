@@ -110,6 +110,8 @@ trait SingletonTypeMacros[C <: Context] {
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(iType, oType)), func @ Function(_,_)) => {
 
+        val typedFunc = c.typeCheck(func.duplicate)
+
         val annTypeTree =
           Annotated(
             Apply(
@@ -121,7 +123,7 @@ trait SingletonTypeMacros[C <: Context] {
                 )),
                 nme.CONSTRUCTOR
               ),
-              List(func)
+              List(typedFunc)
             ),
             TypeTree(tpe)
           )
