@@ -110,7 +110,10 @@ trait SingletonTypeMacros[C <: Context] {
       //  constructed!
       case (tpe @ TypeRef(_, `f1sym`, List(iType, oType)), func @ Function(_,_)) => {
 
-        val typedFunc = c.typeCheck(func.duplicate)
+        //val funcTyped = c.typeCheck(func.duplicate)
+        
+        val typeTreeWorkaround = // Needed due to a null issue in the compiler
+          TypeTree(tpe).setOriginal(EmptyTree)
 
         val annTypeTree =
           Annotated(
@@ -123,9 +126,11 @@ trait SingletonTypeMacros[C <: Context] {
                 )),
                 nme.CONSTRUCTOR
               ),
-              List(typedFunc)
+              //List(funcTyped)
+              List(func)
             ),
-            TypeTree(tpe)
+            //TypeTree(tpe)
+            typeTreeWorkaround
           )
         mkWitness(annTypeTree, func)
 
