@@ -20,7 +20,7 @@ import scala.language.existentials
 import scala.language.experimental.macros
 
 import scala.reflect.macros.Context
-import scala.annotation.StaticAnnotation
+import scala.annotation.{StaticAnnotation, TypeConstraint}
 
 trait Witness {
   type T
@@ -53,8 +53,8 @@ object WitnessWith extends LowPriorityWitnessWith {
 }
 
 // TODO: Try with TypeConstraint later.
-//class Function1Body[I,O](f: I => O) extends StaticAnnotation with TypeConstraint
-class Function1Body[I,O](f: I => O) extends StaticAnnotation
+class Function1Body[I,O](f: I => O) extends StaticAnnotation with TypeConstraint
+//class Function1Body[I,O](f: I => O) extends StaticAnnotation
 
 trait SingletonTypeMacros[C <: Context] {
   import syntax.SingletonOps
