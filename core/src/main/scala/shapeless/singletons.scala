@@ -52,6 +52,8 @@ object WitnessWith extends LowPriorityWitnessWith {
   implicit def apply1[TC[_], T](t: T) = macro SingletonTypeMacros.convertInstanceImpl1[TC, T]
 }
 
+// TODO: Try with TypeConstraint later.
+//class Function1Body[I,O](f: I => O) extends StaticAnnotation with TypeConstraint
 class Function1Body[I,O](f: I => O) extends StaticAnnotation
 
 trait SingletonTypeMacros[C <: Context] {
@@ -67,8 +69,8 @@ trait SingletonTypeMacros[C <: Context] {
 
   //  'sTpt: Tree' instead of 'sTpt: TypeTree' in order to accept 
   //  an 'Annotated(annotation, typetree)'
-  def mkWitness[W](sTpt: Tree, s: Tree) = {
-  //def mkWitness[W](sTpt: TypTree, s: Tree) = {
+  //def mkWitness[W](sTpt: Tree, s: Tree) = {
+  def mkWitness[W](sTpt: TypTree, s: Tree) = {
     val witnessTpt = Ident(typeOf[Witness].typeSymbol)
     val T = TypeDef(Modifiers(), newTypeName("T"), List(), sTpt)
     val value = ValDef(Modifiers(), newTermName("value"), sTpt, s)
@@ -90,7 +92,6 @@ trait SingletonTypeMacros[C <: Context] {
   }
 
   def convertImpl[T: c.WeakTypeTag](t: c.Expr[T]): c.Expr[Witness.Lt[T]] = {
-    import scala.collection.immutable.ListMap
 
     val f1sym = typeOf[Function1[_,_]].typeSymbol
 
@@ -108,97 +109,135 @@ trait SingletonTypeMacros[C <: Context] {
       //  are avoiding ghastly bugs relating to free variables and evaluation 
       //  of this witness in a different context from the one in which it's 
       //  constructed!
-      case (tpe @ TypeRef(_, `f1sym`, List(iType, oType)), func @ Function(_,_)) => {
+      //  ALSO!: You will, assuming it even works like I hope it does, most
+      //  certainly need scala.annotation.TypeConstraint -- otherwise the 
+      //  annotated type can be inhabited by any value of the underlying type.
+      case (tpe @ TypeRef(_, `f1sym`, List(inType, outType)), func @ Function(_,_)) =>
+        // Stubbornly trying un-typeChecked TypeTree again, in this new scheme.
+        mkFuncWitness(TypeTree(tpe), func, inType, outType)
 
-        val funcTyped = c.typeCheck(func.duplicate)
+        //val funcTyped = c.typeCheck(func.duplicate)
         
-        val typeTreeWorkaround = // Needed due to a null issue in the compiler
-          TypeTree(tpe).setOriginal(EmptyTree)
+        //val typeTreeWorkaround = // Needed due to a null issue in the compiler
+        //  TypeTree(tpe).setOriginal(EmptyTree)
 
-        val annTypeTree =
-          Annotated(
-            Apply(
-              Select(
-                New(
-                  AppliedTypeTree(
-                    Ident(newTypeName("Function1Body")),
-                    List(Ident(iType.typeSymbol.name), Ident(oType.typeSymbol.name))
-                )),
-                nme.CONSTRUCTOR
-              ),
-              List(funcTyped)
-              //List(func)
-            ),
-            //TypeTree(tpe)
-            typeTreeWorkaround
-          )
-        mkWitness(annTypeTree, func)
-
-        // val annTypeTree = 
+        // val annTypeTree =
         //   Annotated(
         //     Apply(
-        //       TypeApply(
-        //         Select(Ident(newTermName("FunctionBody1")), newTermName("apply")),
-        //         List(Ident(iType.typeSymbol.name), Ident(oType.typeSymbol.name))
+        //       Select(
+        //         New(
+        //           AppliedTypeTree(
+        //             Ident(newTypeName("Function1Body")),
+        //             List(Ident(iType.typeSymbol.name), Ident(oType.typeSymbol.name))
+        //         )),
+        //         nme.CONSTRUCTOR
         //       ),
-        //       List(func)
+        //       List(funcTyped)
+        //       //List(func)
         //     ),
-        //     TypeTree(tpe)
+        //     //TypeTree(tpe)
+        //     typeTreeWorkaround
         //   )
-        // mkWitness(annTypeTree, func)
-          
-        /*
-        PackageDef(
-          Ident(newTermName("<empty>")),
-          List(
-            ClassDef(
-              Modifiers(
-                NoFlags, tpnme.EMPTY,
-                List(
-                  Apply(
-                    Select(
-                      New(
-                        AppliedTypeTree(
-                          Ident(newTypeName("foo")),
-                          List(Ident(newTypeName("Int")))
-                      )),
-                      nme.CONSTRUCTOR
-                    ),
-                    List(Literal(Constant(2)))
-              ))),
-              newTypeName("C"), List(),
-              Template(
-                List(Select(Ident(scala), newTypeName("AnyRef"))),
-                emptyValDef,
-                List(
-                  DefDef(
-                    Modifiers(), nme.CONSTRUCTOR, List(), List(List()), TypeTree(),
-                    Block(
-                      List(
-                        Apply(
-                          Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR),
-                          List()
-                      )),
-                      Literal(Constant(()))
-        )))))))
-
-        New(AppliedTypeTree(...))
-
-        package <empty> {
-          @new foo[Int](2) class C extends scala.AnyRef {
-            def <init>() = {
-              super.<init>();
-              ()
-            }
-          }
-        }
-        */
-      }
 
       case _ =>
         c.abort(c.enclosingPosition, s"Expression ${t.tree} does not evaluate to a constant or a stable value")
     }
   }
+
+  def mkFuncWitness[W](fnTpt: TypTree, func: Function, i: Type, o: Type) = {
+    import scala.collection.immutable.ListMap
+
+    val witnessTpt = Ident(typeOf[Witness].typeSymbol)
+    val f1sym = typeOf[Function1[_,_]].typeSymbol
+
+    //  TODO: Do I want a separate annotated type instead, to be referred to 
+    //    by both the TypeDef and the ValDef?
+    val T =
+      TypeDef(
+        Modifiers(
+          NoFlags, tpnme.EMPTY,
+          List(
+            Apply(
+              Select(
+                New(
+                  AppliedTypeTree(
+                    Ident(newTypeName("Function1Body")),
+                    List(Ident(i.typeSymbol.name), Ident(o.typeSymbol.name))
+                )),
+                nme.CONSTRUCTOR
+              ),
+              List(func)
+        ))),
+        newTypeName("T"), List(), fnTpt
+      )
+
+    val value =
+      ValDef(
+        Modifiers(),
+        newTermName("value"),
+        TypeTree(
+          AnnotatedType(
+            List(
+              Annotation(
+                TypeRef(
+                  NoPrefix,
+                  typeOf[Function1Body[_,_]].typeSymbol,
+                  List(i, o)
+                ),
+                List(func),
+                ListMap()
+            )),
+            TypeRef(NoPrefix, f1sym, List(i, o)),
+            NoSymbol
+        )),
+        func
+      )
+
+    c.Expr[W] {
+      mkImplClass(witnessTpt, List(T, value), List())
+    }
+
+    // def mkWitness[W](sTpt: TypTree, s: Tree) = {
+    //   val witnessTpt = Ident(typeOf[Witness].typeSymbol)
+    //   val T = TypeDef(Modifiers(), newTypeName("T"), List(), sTpt)
+    //   val value = ValDef(Modifiers(), newTermName("value"), sTpt, s)
+    //   c.Expr[W] {
+    //     mkImplClass(witnessTpt, List(T, value), List())
+    //   }
+    // }
+
+    /*
+    TypeDef(
+      Modifiers(
+        NoFlags, tpnme.EMPTY,
+        List(
+          Apply(
+            Select(
+              New(
+                AppliedTypeTree(
+                  Ident(shapeless.Function1Body),
+                  List(Ident(scala.Boolean), Ident(scala.Boolean))
+              )),
+              nme.CONSTRUCTOR
+            ),
+            List(
+              Function(
+                List(
+                  ValDef(
+                    Modifiers(PARAM), newTermName("b"),
+                    Ident(scala.Boolean), EmptyTree
+                )),
+                Select(
+                  Ident(newTermName("b")),
+                  newTermName("unary_$bang")
+      )))))),
+      newTypeName("Boo"), List(),
+      AppliedTypeTree(
+        Ident(scala.Function1), List(Ident(scala.Boolean), Ident(scala.Boolean))
+    ))
+    */
+  }
+
 
   def mkWitnessWith[W](singletonInstanceTpt: TypTree, sTpt: TypTree, s: Tree, i: Tree) = {
     val iTpe =
